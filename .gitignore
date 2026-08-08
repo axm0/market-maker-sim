@@ -7,10 +7,9 @@ dist/
 .venv/
 .pytest_cache/
 .ruff_cache/
+.hypothesis/
 
-# Data / outputs
+# Data (raw inputs only; committed outputs live in docs/figures and results/)
 data/
 *.csv
 *.parquet
-figures/
-*.png
