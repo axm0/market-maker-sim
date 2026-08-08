@@ -13,3 +13,10 @@ dist/
 data/
 *.csv
 *.parquet
+
+# OCaml build artifacts
+ocaml/test_book
+ocaml/*.cmi
+ocaml/*.cmo
+ocaml/*.cmx
+ocaml/*.o
