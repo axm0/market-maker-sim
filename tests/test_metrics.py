@@ -3,9 +3,15 @@ decomposition identity on real backtests; hand-built examples pin down the
 sign conventions of every metric."""
 
 import numpy as np
+import pytest
 
 from market_maker_sim.backtest import BacktestResult, Mark, MMFill, SimConfig, run_backtest
-from market_maker_sim.metrics import decompose_pnl, episode_metrics, markouts
+from market_maker_sim.metrics import (
+    decompose_pnl,
+    episode_metrics,
+    markouts,
+    paired_comparison,
+)
 from market_maker_sim.orders import Side
 from market_maker_sim.strategy import AvellanedaStoikov
 
@@ -116,6 +122,42 @@ class TestMarkouts:
         marks = [mark(0.0, 100.0, 0, 0), mark(40.0, 100.0, 10, -990)]
         mo = markouts(make_result(fills, marks), horizons=(5.0,))
         assert np.isnan(mo["all"][5.0])
+
+
+class TestPairedComparison:
+    @staticmethod
+    def result_with_final_pnl(pnl_dollars: float, seed: int) -> BacktestResult:
+        # cash-only PnL: final mark carries the whole PnL as cash ticks
+        marks = [mark(0.0, 100.0, 0, 0), mark(1.0, 100.0, 0, int(pnl_dollars * 100))]
+        return BacktestResult(config=SimConfig(seed=seed), strategy_name="x",
+                              marks=marks, fills=[], quoted_spreads=[])
+
+    def test_known_differences(self):
+        a = [self.result_with_final_pnl(p, seed=i) for i, p in enumerate([3.0, 5.0, 4.0])]
+        b = [self.result_with_final_pnl(p, seed=i) for i, p in enumerate([1.0, 6.0, 1.0])]
+        cmp = paired_comparison(a, b)
+        # diffs = [2, -1, 3] -> mean 4/3, a wins 2/3 of pairs
+        assert np.isclose(cmp.mean_diff, 4.0 / 3.0)
+        assert np.isclose(cmp.share_episodes_a_wins, 2.0 / 3.0)
+        assert cmp.ci_low <= cmp.mean_diff <= cmp.ci_high
+
+    def test_identical_results_give_zero_diff(self):
+        a = [self.result_with_final_pnl(2.0, seed=i) for i in range(4)]
+        b = [self.result_with_final_pnl(2.0, seed=i) for i in range(4)]
+        cmp = paired_comparison(a, b)
+        assert cmp.mean_diff == 0.0
+        assert cmp.ci_low == 0.0 and cmp.ci_high == 0.0
+
+    def test_mismatched_seeds_rejected(self):
+        a = [self.result_with_final_pnl(1.0, seed=1)]
+        b = [self.result_with_final_pnl(1.0, seed=2)]
+        with pytest.raises(ValueError, match="not paired"):
+            paired_comparison(a, b)
+
+    def test_unequal_lengths_rejected(self):
+        a = [self.result_with_final_pnl(1.0, seed=1)]
+        with pytest.raises(ValueError, match="equal-length"):
+            paired_comparison(a, [])
 
 
 class TestEpisodeMetrics:

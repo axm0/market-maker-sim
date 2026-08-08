@@ -46,18 +46,21 @@ calendar meaning, so an annualized figure would be theater.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import cast
 
 import numpy as np
 
-from .backtest import BacktestResult
+from .backtest import BacktestResult, MMFill
 
 __all__ = [
     "EpisodeMetrics",
+    "PairedComparison",
     "PnLDecomposition",
     "StrategySummary",
     "decompose_pnl",
     "episode_metrics",
     "markouts",
+    "paired_comparison",
     "summarize",
 ]
 
@@ -72,8 +75,8 @@ class PnLDecomposition:
     spread_capture: float
     inventory_pnl: float
     # Cumulative paths on the mark grid (aligned with result.marks)
-    spread_capture_path: np.ndarray = field(repr=False, default=None)  # type: ignore[assignment]
-    inventory_pnl_path: np.ndarray = field(repr=False, default=None)  # type: ignore[assignment]
+    spread_capture_path: np.ndarray = field(repr=False)
+    inventory_pnl_path: np.ndarray = field(repr=False)
 
 
 def decompose_pnl(result: BacktestResult) -> PnLDecomposition:
@@ -97,7 +100,7 @@ def decompose_pnl(result: BacktestResult) -> PnLDecomposition:
     inv_path = np.zeros(len(result.marks))
     for _time, kind, payload in checkpoints:
         if kind == 0:  # fill
-            f = payload
+            f = cast(MMFill, payload)
             mid = f.pre_trade_mid
             if prev_mid is not None:
                 inventory_pnl += q * (mid - prev_mid)
@@ -105,7 +108,7 @@ def decompose_pnl(result: BacktestResult) -> PnLDecomposition:
             q += f.signed_qty
             prev_mid = mid
         else:  # mark
-            i = payload
+            i = cast(int, payload)
             mid = result.marks[i].mid
             if prev_mid is not None:
                 inventory_pnl += q * (mid - prev_mid)
@@ -278,4 +281,55 @@ def summarize(
         markout_5s_all=_mean_markout("all", 5.0),
         markout_5s_informed=_mean_markout("informed", 5.0),
         markout_5s_noise=_mean_markout("noise", 5.0),
+    )
+
+
+@dataclass(frozen=True)
+class PairedComparison:
+    """Paired inference on per-episode final PnL between two strategies run on
+    common random numbers (episode i of both saw the same market).
+
+    Because the comparison is paired, the market-realization noise that
+    dominates each strategy's own PnL variance cancels in the difference —
+    this is the whole reason the harness uses common random numbers. Reported:
+    the mean per-episode difference, its paired t-statistic, and a bootstrap
+    95% CI on the mean difference (10,000 resamples of the difference vector;
+    no normality assumption)."""
+
+    n_pairs: int
+    mean_diff: float  # mean(final_a - final_b), dollars
+    t_stat: float  # mean_diff / (std_diff / sqrt(n))
+    ci_low: float  # bootstrap 95% CI on mean_diff
+    ci_high: float
+    share_episodes_a_wins: float
+
+
+def paired_comparison(
+    results_a: list[BacktestResult],
+    results_b: list[BacktestResult],
+    n_boot: int = 10_000,
+    seed: int = 0,
+) -> PairedComparison:
+    """Compare final PnL of strategy a vs b, paired by seed."""
+    if len(results_a) != len(results_b):
+        raise ValueError("paired comparison needs equal-length result lists")
+    for ra, rb in zip(results_a, results_b, strict=True):
+        if ra.config.seed != rb.config.seed:
+            raise ValueError("results are not paired by seed")
+    diffs = np.array(
+        [ra.pnl_dollars()[-1] - rb.pnl_dollars()[-1]
+         for ra, rb in zip(results_a, results_b, strict=True)]
+    )
+    n = len(diffs)
+    se = float(np.std(diffs, ddof=1)) / np.sqrt(n)
+    rng = np.random.default_rng(seed)
+    boot = rng.choice(diffs, size=(n_boot, n), replace=True).mean(axis=1)
+    lo, hi = np.percentile(boot, [2.5, 97.5])
+    return PairedComparison(
+        n_pairs=n,
+        mean_diff=float(diffs.mean()),
+        t_stat=float(diffs.mean() / se) if se > 0 else 0.0,
+        ci_low=float(lo),
+        ci_high=float(hi),
+        share_episodes_a_wins=float(np.mean(diffs > 0)),
     )
