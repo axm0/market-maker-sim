@@ -53,7 +53,10 @@ its deque immediately. Production engines usually prefer O(1) lazy tombstoning
 with intrusive lists; eager removal was chosen deliberately because it keeps a
 stronger invariant — *everything in a queue is live* — which makes the
 matching loop simpler to reason about, and level sizes here are small. This is
-a documented correctness-over-throughput trade-off, not an oversight.
+a documented correctness-over-throughput trade-off, not an oversight — and a
+measured one: `benchmarks/bench_book.py` shows ~580k ops/s on a mixed
+workload, flat from an empty book to 100k resting orders, roughly four orders
+of magnitude above what the simulation consumes.
 
 **How correctness is established.** Three layers in the test suite:
 
@@ -198,7 +201,10 @@ reservation-price skew and spread optimization, not mechanics.
   tiebreaker makes simultaneous events execute in schedule order. Runs are
   exactly reproducible per seed (asserted by test), and strategies are
   compared with **common random numbers** — episode i of every strategy sees
-  the same market realization — which sharpens paired comparisons.
+  the same market realization. This is what makes *paired* inference valid:
+  the reported comparison is the per-seed PnL difference with a paired
+  t-statistic and a bootstrap CI, which cancels the market-realization noise
+  that dominates each strategy's own variance.
 * **Queue-priority-preserving quote management.** On requote, a live order is
   left untouched when the strategy still wants its price, because
   cancel-replace would send it to the back of the FIFO queue. Time priority is
@@ -244,10 +250,12 @@ up as a yearly number would be theater.
 
 ## 8. Known limitations (and why they're acceptable here)
 
-* **No latency or queue competition from other market makers.** The MM
-  requotes on a fixed interval with zero latency; adverse selection from
-  *being slow* is therefore under-represented relative to real markets. The
-  requote interval is a crude latency knob.
+* **No queue competition from other market makers, and latency only via the
+  requote interval.** The latency sweep in the results shows what that knob
+  costs (~44% of PnL from 0.25s to 10s) and through which channel — foregone
+  volume and slower inventory control, *not* deeper per-fill markouts,
+  because informed flow here only attacks the touch. Modeling pick-off risk
+  proper would need informed traders who snipe stale quotes deep in the book.
 * **Calibration ignores the probe's own impact.** λ(δ) is measured without
   the MM's quote in the book; adding it would add depth and absorb flow.
   Bias is small at these sizes and conservative for the fit's use.

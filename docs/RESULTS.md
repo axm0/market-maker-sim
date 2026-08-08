@@ -34,6 +34,15 @@ parameters measured, not assumed.
 
 ![pnl distributions](figures/pnl_distributions.png)
 
+**Paired inference** (episodes share seeds, so the difference is measured on
+identical markets): A-S beats the baseline by **+$1.60/session on average and
+wins 71% of episodes**, but the bootstrap 95% CI on the mean difference is
+[−$0.22, +$3.36] — the *mean* edge is suggestive, not significant at 5% with
+24 seeds. The statistically unambiguous difference is in **risk**: one third
+less PnL standard deviation and half the inventory. That is the correct
+statement of the A-S value proposition — it is a risk-management model, and
+we report it as such rather than overclaiming the mean.
+
 The economics, not just the numbers:
 
 * **A-S earns more with 33% less PnL volatility — Sharpe 3.67 vs 2.03.** Both
@@ -113,7 +122,40 @@ gets further through stale quotes before the book reprices. Both A-S inputs
   γ respond to the regime. We report the fixed-γ result rather than tuning it
   away.
 
-## 5. What the simulator demonstrates
+## 5. Latency sweep: what quote staleness actually costs
+
+![latency sweep](figures/latency_sweep.png)
+
+The requote interval is the harness's latency knob: a slower quoting loop
+reacts later to mid moves and inventory changes. Slowing from 0.25s to 10s
+cuts PnL by ~44% ($8.93 → $5.04) and volume by ~62%.
+
+The *channel* is the interesting part. The folk story is "slow quotes get
+picked off" — deeper markouts. That is not what happens here: per-fill
+markouts actually *shrink* with latency (informed markouts go from −2.4 to
+−1.7 ticks) while volume collapses. The mechanism: informed traders in this
+flow only attack the touch, and a stale quote left behind by the drifting mid
+is protected by the resting depth in front of it — so staleness costs you the
+*fills you no longer get* (and slower inventory control), not worse prices on
+the fills you do get. Pick-off risk would need informed flow that snipes deep
+into the book (a documented extension). An honest simulator tells you which
+mechanism your assumptions actually produce.
+
+There is also a small cost to quoting *too* fast: at 0.1s the strategy
+re-prices on every half-tick bounce of the mid, churning away its FIFO queue
+priority; 0.25s is the sweet spot in this regime.
+
+## 6. Engine throughput
+
+`benchmarks/bench_book.py` (M-series MacBook, CPython 3.12): **~580,000
+operations/second** on a mixed workload (50% limit / 20% market / 30% cancel),
+flat from an empty book to 100,000 preloaded resting orders — best-price
+access is a lazy heap (O(log n)) and order lookup is O(1), so nothing scales
+with book size. The engine deliberately trades peak speed for auditability
+(eager cancels, per-event allocation); at ~20 simulated events/second in the
+backtest, that leaves four orders of magnitude of headroom.
+
+## 7. What the simulator demonstrates
 
 1. **Inventory skew is the cheap risk control.** Tilting quote *probabilities*
    (reservation price) removes half to two-thirds of inventory variance at
@@ -132,3 +174,8 @@ gets further through stale quotes before the book reprices. Both A-S inputs
    risk-adjusted in every viable regime; at extreme σ with fixed γ, discrete
    ticks, passivity clipping, and mid-anchoring failure break the model's
    assumptions and it says so in the PnL.
+5. **Latency costs show up where your flow model says they do.** Here,
+   staleness costs volume and inventory control, not per-fill pick-offs —
+   because informed traders only attack the touch. The claim "speed protects
+   you from adverse selection" is a statement about the *flow*, and this
+   simulator makes that dependence explicit.

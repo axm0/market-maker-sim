@@ -56,6 +56,13 @@ Sharpe. The baseline earns the spread too, but its unskewed position
 random-walks between the position limits and its PnL variance is dominated by
 inventory risk it is not paid for.
 
+The claim is stated with the right statistics: paired by seed, A-S wins **71%
+of episodes** with a mean edge of +$1.60/session (paired t = 1.70, bootstrap
+95% CI [−$0.22, +$3.36]) — so the *mean* advantage is suggestive rather than
+significant at 24 seeds, and the unambiguous, first-order difference is the
+**risk reduction**. A-S is a risk-management model, and the numbers are
+reported as exactly that rather than overclaimed.
+
 ## How it works
 
 ```mermaid
@@ -145,10 +152,28 @@ every regime where market making is viable (Sharpe 7.7 vs 1.8 at σ=0.005; 2.2
 vs 1.1 at σ=0.02). At σ=0.03 the mid itself becomes unreliable and fixed-γ
 passive quoting stops paying — reported as-is rather than tuned away.
 
+### What quote latency actually costs
+
+<p align="center">
+  <img src="docs/figures/latency_sweep.png" width="900"
+       alt="Latency sweep: PnL, volume, and markouts vs requote interval">
+</p>
+
+Slowing the quoting loop from 0.25s to 10s cuts PnL ~44% and volume ~62% —
+but through the *opposite* channel to the folk story. Per-fill markouts get
+**better** with latency, not worse: informed traders in this flow only attack
+the touch, so a stale quote left behind by the drifting mid is shielded by the
+depth in front of it. Staleness costs the fills you no longer get and slower
+inventory control, not worse prices on the fills you do get. Whether "speed
+protects you from adverse selection" is true is a property of the *flow*, and
+the simulator makes that dependence explicit. (There is also a measurable cost
+to quoting too fast: at 0.1s the strategy churns away its FIFO queue priority
+re-pricing on every half-tick bounce.)
+
 ## Correctness
 
 The matching engine is the foundation, so it gets three layers of tests
-(72 tests total):
+(76 tests total):
 
 * **Scenario tests** — every economic rule (price priority, FIFO, partial
   fills, walking the book, price improvement, marketable limits, cancel
@@ -168,6 +193,18 @@ mark, the PnL decomposition identity is asserted to machine precision, and
 statistical tests verify Brownian √dt scaling and that informed flow actually
 predicts price moves (and noise flow doesn't).
 
+Engineering hygiene: the whole package passes **`mypy --strict`** (typed API,
+`py.typed` marker), `ruff`, and CI runs lint + types + tests on Python
+3.11–3.13. Strategy comparisons use common random numbers with **paired
+bootstrap inference**, so reported differences are measured on identical
+markets, not across independent noise.
+
+**Throughput** (`benchmarks/bench_book.py`): ~**580k engine operations/second**
+on a mixed limit/market/cancel workload, flat from an empty book to 100k
+resting orders (lazy-heap best-price access, O(1) order lookup) — four orders
+of magnitude above what the simulation consumes, despite the engine
+deliberately favoring auditability over peak speed.
+
 ## Quickstart
 
 ```bash
@@ -184,7 +221,12 @@ uv venv && uv pip install -e ".[dev,plot]"
 
 `mm-sim all` (≈30s, single-threaded) regenerates every figure in
 `docs/figures/` and the raw numbers in `results/summary.json`. Individual
-stages: `mm-sim calibrate | episode | compare | sweep-gamma | sweep-sigma`.
+stages: `mm-sim calibrate | episode | compare | sweep-gamma | sweep-sigma |
+sweep-latency`. Engine benchmark:
+
+```bash
+.venv/bin/python benchmarks/bench_book.py
+```
 
 ## Repository map
 
@@ -199,7 +241,8 @@ src/market_maker_sim/
 ├── metrics.py       PnL decomposition, Sharpe, markouts, summaries
 ├── plotting.py      all figures (colorblind-safe, fixed series identities)
 └── experiments.py   CLI: mm-sim {all,calibrate,episode,compare,sweep-*}
-tests/               72 tests: scenarios, differential+property, statistical
+tests/               76 tests: scenarios, differential+property, statistical
+benchmarks/          engine throughput micro-benchmark
 docs/DESIGN.md       the microstructure reasoning behind every decision
 docs/RESULTS.md      full results write-up
 ```
