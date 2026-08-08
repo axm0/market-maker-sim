@@ -41,6 +41,14 @@
       "markout_5s_noise": -0.002220862574252773
     }
   },
+  "paired": {
+    "n_pairs": 24,
+    "mean_diff": 1.5989583333333333,
+    "t_stat": 1.6995650790669707,
+    "ci_low": -0.2236250000000001,
+    "ci_high": 3.361651041666664,
+    "share_episodes_a_wins": 0.7083333333333334
+  },
   "gamma_sweep": {
     "grid": [
       0.001,
@@ -322,6 +330,120 @@
         }
       ]
     }
+  },
+  "latency_sweep": {
+    "grid": [
+      0.1,
+      0.25,
+      1.0,
+      2.5,
+      5.0,
+      10.0
+    ],
+    "summaries": [
+      {
+        "strategy_name": "avellaneda-stoikov",
+        "n_episodes": 24,
+        "mean_final_pnl": 7.876875000000001,
+        "std_final_pnl": 2.6536622817221454,
+        "episode_sharpe": 2.96830348543378,
+        "mean_step_sharpe": 3.122404170905464,
+        "mean_spread_capture": 20.94604166666667,
+        "mean_inventory_pnl": -13.069166666666666,
+        "mean_max_abs_inventory": 25.875,
+        "mean_abs_inventory": 5.880030530113795,
+        "mean_quoted_spread_ticks": 3.7212651917431194,
+        "mean_volume": 1227.75,
+        "markout_5s_all": -0.010049355463635548,
+        "markout_5s_informed": -0.025155191468728837,
+        "markout_5s_noise": -0.0015776115386825068
+      },
+      {
+        "strategy_name": "avellaneda-stoikov",
+        "n_episodes": 24,
+        "mean_final_pnl": 8.930625000000001,
+        "std_final_pnl": 2.434453921670963,
+        "episode_sharpe": 3.6684304929748635,
+        "mean_step_sharpe": 3.8128098091557123,
+        "mean_spread_capture": 19.335833333333333,
+        "mean_inventory_pnl": -10.405208333333334,
+        "mean_max_abs_inventory": 25.583333333333332,
+        "mean_abs_inventory": 5.888356924784901,
+        "mean_quoted_spread_ticks": 3.7216544509564713,
+        "mean_volume": 1153.5,
+        "markout_5s_all": -0.009567447644759669,
+        "markout_5s_informed": -0.023558049855519556,
+        "markout_5s_noise": -0.0018979304223660004
+      },
+      {
+        "strategy_name": "avellaneda-stoikov",
+        "n_episodes": 24,
+        "mean_final_pnl": 8.371666666666668,
+        "std_final_pnl": 2.468959324275622,
+        "episode_sharpe": 3.3907673505811466,
+        "mean_step_sharpe": 3.3862161915311497,
+        "mean_spread_capture": 16.511041666666667,
+        "mean_inventory_pnl": -8.139375,
+        "mean_max_abs_inventory": 24.25,
+        "mean_abs_inventory": 6.142311962253678,
+        "mean_quoted_spread_ticks": 3.7284882851402625,
+        "mean_volume": 1012.0416666666666,
+        "markout_5s_all": -0.007717701276971255,
+        "markout_5s_informed": -0.02033471359424241,
+        "markout_5s_noise": -0.0009968259050422
+      },
+      {
+        "strategy_name": "avellaneda-stoikov",
+        "n_episodes": 24,
+        "mean_final_pnl": 7.088125000000001,
+        "std_final_pnl": 2.1073668984221086,
+        "episode_sharpe": 3.363498309339126,
+        "mean_step_sharpe": 2.4033654751606774,
+        "mean_spread_capture": 13.487083333333333,
+        "mean_inventory_pnl": -6.398958333333333,
+        "mean_max_abs_inventory": 25.041666666666668,
+        "mean_abs_inventory": 6.73924507354982,
+        "mean_quoted_spread_ticks": 3.724946054553777,
+        "mean_volume": 855.875,
+        "markout_5s_all": -0.00712003982648754,
+        "markout_5s_informed": -0.018996385808897485,
+        "markout_5s_noise": -0.0008936469126706493
+      },
+      {
+        "strategy_name": "avellaneda-stoikov",
+        "n_episodes": 24,
+        "mean_final_pnl": 6.036874999999999,
+        "std_final_pnl": 1.983514564396721,
+        "episode_sharpe": 3.0435244128575856,
+        "mean_step_sharpe": 2.090602670937828,
+        "mean_spread_capture": 10.668333333333331,
+        "mean_inventory_pnl": -4.631458333333333,
+        "mean_max_abs_inventory": 24.791666666666668,
+        "mean_abs_inventory": 7.220510685539828,
+        "mean_quoted_spread_ticks": 3.7249131725782108,
+        "mean_volume": 664.7916666666666,
+        "markout_5s_all": -0.006870590271501623,
+        "markout_5s_informed": -0.019486788379350705,
+        "markout_5s_noise": -0.0005335554966181175
+      },
+      {
+        "strategy_name": "avellaneda-stoikov",
+        "n_episodes": 24,
+        "mean_final_pnl": 5.043125,
+        "std_final_pnl": 2.208526861222007,
+        "episode_sharpe": 2.2834791319719665,
+        "mean_step_sharpe": 1.900918651985221,
+        "mean_spread_capture": 7.062708333333333,
+        "mean_inventory_pnl": -2.0195833333333333,
+        "mean_max_abs_inventory": 20.625,
+        "mean_abs_inventory": 6.782021926172635,
+        "mean_quoted_spread_ticks": 3.694443865579945,
+        "mean_volume": 435.875,
+        "markout_5s_all": -0.005606218938895233,
+        "markout_5s_informed": -0.017243169236909828,
+        "markout_5s_noise": -0.00021636304695202537
+      }
+    ]
   },
   "config": {
     "n_seeds": 24,
