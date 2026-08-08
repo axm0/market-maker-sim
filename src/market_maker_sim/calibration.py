@@ -44,7 +44,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from .backtest import BacktestResult, SimConfig, run_flow_only
-from .orders import Fill, Side
+from .orders import BookEvent, Fill, Side
 
 __all__ = ["FillIntensityFit", "calibrate_fill_intensity", "estimate_sigma"]
 
@@ -59,11 +59,12 @@ class FillIntensityFit:
     intensities: np.ndarray  # empirical lambda(delta) on that grid
     r_squared: float
 
-    def intensity(self, delta_dollars: float) -> float:
-        return self.A * np.exp(-self.k * delta_dollars)
+    def intensity(self, delta_dollars: float | np.ndarray) -> float | np.ndarray:
+        out: float | np.ndarray = self.A * np.exp(-self.k * delta_dollars)
+        return out
 
 
-def _market_order_depths(events: list, tick_size: float) -> list[float]:
+def _market_order_depths(events: list[BookEvent], tick_size: float) -> list[float]:
     """Depth (in dollars past the pre-trade mid) reached by each market order,
     from the raw event stream of a flow-only run. Consecutive fills sharing a
     taker_order_id belong to one order walking the book."""

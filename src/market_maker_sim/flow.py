@@ -47,6 +47,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 
 import numpy as np
 
@@ -223,13 +224,17 @@ class OrderFlow:
 
     def _schedule_expiry(self, order_id: int, now: float) -> None:
         lifetime = self.rng.exponential(self.p.limit_lifetime_mean)
-        self.schedule(now + lifetime, lambda t, oid=order_id: self._expire(oid, t))
+        self.schedule(now + lifetime, partial(self._expire, order_id))
 
-    def _schedule_arrival(self, now: float, rate: float, action) -> None:
+    def _schedule_arrival(
+        self, now: float, rate: float, action: Callable[[float], list[BookEvent]]
+    ) -> None:
         if rate > 0:
             self.schedule(now + self.rng.exponential(1.0 / rate), action)
 
-    def _reschedule(self, now: float, rate: float, action) -> None:
+    def _reschedule(
+        self, now: float, rate: float, action: Callable[[float], list[BookEvent]]
+    ) -> None:
         self._schedule_arrival(now, rate, action)
 
     def _update_last_mid(self) -> None:

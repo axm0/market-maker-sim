@@ -141,11 +141,11 @@ class AvellanedaStoikov:
         r = self.reservation_price(mid, inventory, t)
         half_spread = self.optimal_total_spread(t) / 2.0
         # Outward rounding to the tick grid: never quote tighter than optimal.
-        bid = math.floor((r - half_spread) / self.tick_size)
-        ask = math.ceil((r + half_spread) / self.tick_size)
-        if ask <= bid:  # degenerate only if the model spread is < 1 tick
-            ask = bid + 1
-        bid, ask = _clip_passive(bid, ask, book)
+        raw_bid = math.floor((r - half_spread) / self.tick_size)
+        raw_ask = math.ceil((r + half_spread) / self.tick_size)
+        if raw_ask <= raw_bid:  # degenerate only if the model spread is < 1 tick
+            raw_ask = raw_bid + 1
+        bid, ask = _clip_passive(raw_bid, raw_ask, book)
         bid, ask = _apply_position_limit(bid, ask, inventory, self.max_inventory, self.size)
         return Quote(bid_price=bid, ask_price=ask, size=self.size)
 
@@ -168,10 +168,10 @@ class SymmetricQuoter:
     name: str = "symmetric"
 
     def quote(self, t: float, mid_ticks: float, inventory: int, book: LimitOrderBook) -> Quote:
-        bid = math.floor(mid_ticks - self.half_spread_ticks)
-        ask = math.ceil(mid_ticks + self.half_spread_ticks)
-        if ask <= bid:
-            ask = bid + 1
-        bid, ask = _clip_passive(bid, ask, book)
+        raw_bid = math.floor(mid_ticks - self.half_spread_ticks)
+        raw_ask = math.ceil(mid_ticks + self.half_spread_ticks)
+        if raw_ask <= raw_bid:
+            raw_ask = raw_bid + 1
+        bid, ask = _clip_passive(raw_bid, raw_ask, book)
         bid, ask = _apply_position_limit(bid, ask, inventory, self.max_inventory, self.size)
         return Quote(bid_price=bid, ask_price=ask, size=self.size)

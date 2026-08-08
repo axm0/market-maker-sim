@@ -116,7 +116,8 @@ class BacktestResult:
         cash = np.array([m.cash_ticks for m in self.marks], dtype=float)
         inv = np.array([m.inventory for m in self.marks], dtype=float)
         mid = self.mark_mids()
-        return (cash + inv * mid) * self.config.tick_size
+        pnl: np.ndarray = (cash + inv * mid) * self.config.tick_size
+        return pnl
 
 
 class _EventQueue:

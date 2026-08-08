@@ -20,16 +20,19 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 from .backtest import BacktestResult
 from .calibration import FillIntensityFit
-from .metrics import decompose_pnl
+from .metrics import StrategySummary, decompose_pnl
 from .orders import Side
 
 __all__ = [
     "plot_episode",
     "plot_fill_intensity",
     "plot_gamma_sweep",
+    "plot_latency_sweep",
     "plot_pnl_distributions",
     "plot_sigma_sweep",
 ]
@@ -49,14 +52,14 @@ C = {
 }
 
 
-def _style(ax: plt.Axes) -> None:
+def _style(ax: Axes) -> None:
     ax.grid(True, color=C["grid"], linewidth=0.6, zorder=0)
     ax.set_axisbelow(True)
     for spine in ("top", "right"):
         ax.spines[spine].set_visible(False)
 
 
-def _save(fig: plt.Figure, path: Path) -> Path:
+def _save(fig: Figure, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=150, bbox_inches="tight")
     plt.close(fig)
@@ -160,7 +163,7 @@ def plot_pnl_distributions(
 
 
 def plot_gamma_sweep(
-    gammas: list[float], summaries: list, path: Path
+    gammas: list[float], summaries: list[StrategySummary], path: Path
 ) -> Path:
     """Risk-aversion sweep: PnL mean/std and inventory vs gamma."""
     mean_pnl = [s.mean_final_pnl for s in summaries]
@@ -192,7 +195,9 @@ def plot_gamma_sweep(
 
 
 def plot_sigma_sweep(
-    sigmas: list[float], summaries_by_strategy: dict[str, list], path: Path
+    sigmas: list[float],
+    summaries_by_strategy: dict[str, list[StrategySummary]],
+    path: Path,
 ) -> Path:
     """Volatility sweep: PnL, risk-adjusted performance, and the deepening of
     informed-counterparty markouts as sigma (hence informed edge) grows."""
@@ -222,6 +227,42 @@ def plot_sigma_sweep(
         _style(ax)
     fig.suptitle("Volatility as the adverse-selection axis: informed markouts deepen, "
                  "noise markouts stay flat", fontsize=11)
+    fig.tight_layout()
+    return _save(fig, path)
+
+
+def plot_latency_sweep(
+    intervals: list[float], summaries: list[StrategySummary], path: Path
+) -> Path:
+    """Quote-refresh latency sweep: what staleness costs, and through which
+    channel (volume and repositioning, not per-fill markouts)."""
+    fig, (ax_pnl, ax_vol, ax_mo) = plt.subplots(1, 3, figsize=(12.5, 3.8))
+
+    ax_pnl.errorbar(intervals, [s.mean_final_pnl for s in summaries],
+                    yerr=[s.std_final_pnl for s in summaries],
+                    color=C["as"], lw=1.4, marker="o", ms=4, capsize=3,
+                    label="mean ± std across seeds")
+    ax_pnl.set_ylabel("final PnL ($)")
+    ax_pnl.legend(fontsize=8, frameon=False)
+
+    ax_vol.plot(intervals, [s.mean_volume for s in summaries], color=C["as"],
+                lw=1.4, marker="o", ms=4)
+    ax_vol.set_ylabel("volume traded (shares)")
+
+    ax_mo.plot(intervals, [s.markout_5s_informed for s in summaries], color=C["as"],
+               lw=1.4, marker="o", ms=4, label="vs informed")
+    ax_mo.plot(intervals, [s.markout_5s_noise for s in summaries], color=C["as"],
+               ls=":", lw=1.1, marker="s", ms=3, alpha=0.7, label="vs noise")
+    ax_mo.set_ylabel("5s markout ($/share)")
+    ax_mo.legend(fontsize=8, frameon=False)
+
+    for ax in (ax_pnl, ax_vol, ax_mo):
+        ax.axhline(0, color=C["mid"], lw=0.8)
+        ax.set_xscale("log")
+        ax.set_xlabel("requote interval (s), log scale")
+        _style(ax)
+    fig.suptitle("The cost of quote latency: foregone volume and slow inventory "
+                 "control, not deeper per-fill markouts", fontsize=11)
     fig.tight_layout()
     return _save(fig, path)
 

@@ -19,6 +19,10 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
       - name: Lint
-        run: ruff check src tests
+        run: ruff check src tests benchmarks
+      - name: Type check
+        # numpy's stubs use `type` statements, which need the 3.12+ parser
+        if: matrix.python-version != '3.11'
+        run: mypy
       - name: Test
         run: pytest -q
